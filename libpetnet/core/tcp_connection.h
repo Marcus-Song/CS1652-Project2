@@ -20,6 +20,7 @@ extern "C" {
 
 struct socket;
 struct tcp_con_map;
+struct pet_timeout;
 
 
 
@@ -70,6 +71,25 @@ struct tcp_connection {
 
     tcp_con_state_t con_state;
 
+    /* Sequence numbers (host byte order) */
+    uint32_t iss;
+    uint32_t peer_iss;
+    uint32_t snd_nxt;
+    uint32_t rcv_nxt;
+
+    /* Stop-and-wait / retransmit */
+    int              waiting_ack;
+    uint32_t         unack_seq;
+    uint32_t         unack_len;
+    uint8_t         *rtx_buf;
+    size_t           rtx_buf_len;
+    int              rtx_is_syn;
+    int              rtx_is_synack;
+    int              rtx_is_fin;
+    struct pet_timeout *rtx_timer;
+
+    /* Server handshake: listening socket (held ref until handshake completes) */
+    struct socket *listen_parent;
 
 };
 

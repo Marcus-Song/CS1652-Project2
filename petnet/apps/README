@@ -1,0 +1,34 @@
+Original programs:
+
+1. udp_test_1_server.c: useful for testing hardcoded connections. This program
+   will start up the petnet stack but does not rely on any TCP functionality
+   being implemented. You can use it to test petnet's existing UDP
+   functionality, and to start up petnet when developing and testing your
+   hardcoded TCP implementation.
+
+2. listen_server.c: useful for testing passive open. listens for incoming TCP
+   connections on specified port. Accepts a connection, reads one message,
+   sends one message, then receives data (without sending or printing anything)
+   until the client closes the connection
+
+3. simple_tcp_client.c: useful for testing active open. initiates TCP
+   connection, then receives and echos data in a loop until the server closes
+   the connection.
+
+Additional programs:
+
+1. simple_server.c: variant of listen_server.c that prints and responds to
+   every received message, instead of only the first one.
+
+2. send_server.c: variant of simple_server.c that only sends data (never calls
+   recv)
+
+3. recv_server.c: variant of simple_server.c that only receives data (never
+   calls send)
+
+4. tcp_client_close.c: variant of simple_tcp_client.c that only receives and
+   echos one message and then closes the connection. This is useful for testing
+   a client-initiated close from petnet.
+
+5. tcp_no_data.c: same as tcp_client_close, but without the receive+send. It
+   just opens the connection, sleeps 2 seconds, then closes the connection.

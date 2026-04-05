@@ -1,7 +1,0 @@
-petlib-objs := 	pet_json.o 		 \
-				pet_hashtable.o  \
-				pet_log.o 		 \
-				pet_util.o 		 \
-				pet_file.o		 \
-				pet_heap.o		 \
-				pet_ringbuffer.o

@@ -624,17 +624,30 @@ tcp_close(struct socket *sock)
     switch (con->con_state) {
     case SYN_SENT:
     case SYN_RCVD:
+    // Half-open: just tear down immediately, no FIN needed
         __tcp_con_reset_tx(con);
         remove_tcp_con(ts->con_map, con);
         put_and_unlock_tcp_con(con);
         return 0;
+
     case ESTABLISHED:
-    case CLOSE_WAIT:
+    // Active close: send FIN, wait for peer's ACK then peer's FIN
         if (__tcp_send_segment(con, 0, 1, 1, 0, NULL, 0, con->snd_nxt, 1) ==
-            0)
+            0) {
             con->snd_nxt += 1;
-        __tcp_con_reset_tx(con);
-        remove_tcp_con(ts->con_map, con);
+            con->con_state = FIN_WAIT1;
+            }
+        put_and_unlock_tcp_con(con);
+        return 0;
+    case CLOSE_WAIT:
+    // Passive close: peer already sent FIN, now we send ours
+        if (__tcp_send_segment(con, 0, 1, 1, 0, NULL, 0, con->snd_nxt, 1) ==
+            0) {
+                con->snd_nxt += 1;
+                con->con_state = LAST_ACK;
+            }
+        //__tcp_con_reset_tx(con);
+        //remove_tcp_con(ts->con_map, con);
         put_and_unlock_tcp_con(con);
         return 0;
     default:
@@ -747,6 +760,7 @@ __tcp_rx_on_con(struct tcp_connection *con,
 
     if (payload_len > 0 && con->con_state == ESTABLISHED) {
         if (seq != con->rcv_nxt) {
+            __tcp_send_segment(con, 0, 1, 0, 0, NULL, 0, con->snd_nxt, 0);
             unlock_tcp_con(con);
             put_tcp_con(con);
             return 0;
@@ -774,6 +788,43 @@ __tcp_rx_on_con(struct tcp_connection *con,
         lock_tcp_con(con);
         con->con_state = CLOSE_WAIT;
         __tcp_send_segment(con, 0, 1, 0, 0, NULL, 0, con->snd_nxt, 0);
+    }
+
+    // Active close states
+    if (con->con_state == FIN_WAIT1) {
+        if (has_ack && !has_fin) {
+            con->con_state = FIN_WAIT2;
+        } else if (has_fin) {
+            con->rcv_nxt += 1;
+            __tcp_send_segment(con, 0, 1, 0, 0, NULL, 0, con->snd_nxt, 0);
+            con->con_state = CLOSING;
+        }
+    } else if (con->con_state == FIN_WAIT2) {
+        if (has_fin) {
+            con->rcv_nxt += 1;
+            __tcp_send_segment(con, 0, 1, 0, 0, NULL, 0, con->snd_nxt, 0);
+            __tcp_con_reset_tx(con);
+            remove_tcp_con(ts->con_map, con);
+            unlock_tcp_con(con);
+            put_tcp_con(con);
+            return 0;
+        }
+    } else if (con->con_state == CLOSING) {
+        if (has_ack) {
+            __tcp_con_reset_tx(con);
+            remove_tcp_con(ts->con_map, con);
+            unlock_tcp_con(con);
+            put_tcp_con(con);
+            return 0;
+        }
+    } else if (con->con_state == LAST_ACK) {
+        if (has_ack) {
+            __tcp_con_reset_tx(con);
+            remove_tcp_con(ts->con_map, con);
+            unlock_tcp_con(con);
+            put_tcp_con(con);
+            return 0;
+        }
     }
 
     unlock_tcp_con(con);

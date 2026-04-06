@@ -1,3 +1,6 @@
 dependencies:
 
 libunwind-dev
+
+Marcus Song- wired TCP to Petnet, hooked socket layer, stop-and-wait + retransmit timer, extended tcp_connection.h
+Sharvi Arora- header creation syn/ack handling, transitions, pkt send/receive and fin handling
